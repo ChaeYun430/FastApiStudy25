@@ -1,11 +1,37 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
+
+from core.dependencies import get_query_token, get_token_header
+from routers import item, user
 
 app = FastAPI(
     title = 'Fast Api Study',
     version = 'v0.0.1',
     # docs_url = None,
-    redoc_url = None
+    redoc_url = None,
+    dependencies=[Depends(get_query_token)]
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8001"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.include_router(user.router)
+app.include_router(
+    item.router,
+    prefix="/item",
+    tags=["item"],
+    dependencies=[Depends(get_token_header)],
+    responses={418: {"description": "I'm a item"}},
+)
+
+
+@app.get("/")
+async def root():
+    return {"message": "Hello Bigger Applications!"}
 
 
 # 이 데코레이터는 FastAPI에게 아래 함수가 경로 /의 get 작동에 해당한다고 알려줌
@@ -56,3 +82,21 @@ async def get_model(model_name: ModelName):
 @app.get("/files/{file_path:path}")
 async def read_file(file_path: str):
     return {"file_path": file_path}
+
+
+
+fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"}]
+
+@app.get("/items/")
+async def read_item(skip: int = 0, limit: int = 10):
+    return fake_items_db[skip : skip + limit]
+
+from typing import Union
+
+@app.get("/items/{item_id}")
+async def read_item(item_id: str, q: Union[str, None] = None):
+    if q:
+        return {"item_id": item_id, "q": q}
+    return {"item_id": item_id}
+
+ㄴ
